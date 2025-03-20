@@ -313,7 +313,7 @@ private:
 
 <div align="center">
   <p>
-    <img src="./resource/dag.svg" alt="计算图示例" width="500">
+    <img src="./docs/resource/dag.svg" alt="计算图示例" width="500">
   </p>
   <p><i>计算图是一个有向无环图(DAG)，其中节点代表计算任务，边表示数据依赖关系</i></p>
 </div>
@@ -469,7 +469,7 @@ void buildAdvancedComputeGraph(std::shared_ptr<GryFlux::PipelineBuilder> builder
 
 <div align="center">
   <p>
-    <img src="./resource/example_graph.svg" alt="复杂计算图示例" width="600">
+    <img src="./docs/resource/example_graph.svg" alt="复杂计算图示例" width="600">
   </p>
   <p><i>复杂计算图示例可视化</i></p>
 </div>
@@ -643,23 +643,7 @@ pipeline.enableProfiling(true);
 
 ## 6. 示例应用
 
-**example_stream.cpp** 展示了一个无人机视频处理系统的实现，它包括以下功能：
-
-1. 视频帧对象检测
-2. 特征提取
-3. 图像压缩
-4. 前景/背景分离
-5. 熵编码
-
-通过流式处理框架，这些功能可以高效并行执行，实现实时视频分析和处理。
-
-<div align="center">
-  <p>
-    <img src="./resource/example_stream.svg" alt="无人机视频处理系统" width="700">
-  </p>
-  <p><i>无人机视频处理系统计算图</i></p>
-</div>
-
+**example_stream.cpp** 展示了一个无人机视频处理系统的实现
 ---
 
 ## 7. 故障排除
