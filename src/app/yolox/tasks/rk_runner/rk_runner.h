@@ -21,6 +21,7 @@ namespace GryFlux
         std::optional<ModelData> load_model(std::string_view filename);
 
         void dump_tensor_attr(rknn_tensor_attr* attr);
+        inline float deqnt_affine_to_f32(int8_t qnt, int zp, float scale);
         ~RkRunner();
 
 

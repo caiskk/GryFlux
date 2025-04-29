@@ -33,7 +33,7 @@ public:
     :src_frame_(frame), idx_(idx), scale_w_(scale_w), scale_h_(scale_h) {};
     ~InputPackage() {};
 
-    const cv::Mat& get_data() const {
+    const cv::Mat get_data() const {
       return src_frame_;
     }
     int get_id() const {
@@ -56,4 +56,21 @@ private:
   int idx_;
   float scale_w_;
   float scale_h_;
+};
+
+class OutputPackage : public GryFlux::DataObject
+{
+public:
+    OutputPackage() {};
+    ~OutputPackage() {};
+    using OutputData = std::pair<std::shared_ptr<float[]>, std::size_t>; //buffer, size
+
+    std::vector<OutputData> get_data() const {
+      return rknn_output_buff;
+    }
+    void push_data(std::shared_ptr<float[]> data, std::size_t size) {
+      rknn_output_buff.push_back({data, size});
+    }
+private:
+    std::vector<OutputData> rknn_output_buff;
 };

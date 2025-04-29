@@ -141,13 +141,33 @@ namespace GryFlux {
 		RKNN_CHECK(rknn_run(rknn_ctx_, nullptr), "rknn run inference");
 
 		//sync output
-		for (auto & mem : output_mems_) {
-			rknn_mem_sync(rknn_ctx_, mem, RKNN_MEMORY_SYNC_FROM_DEVICE);
-		}
+		auto output_data = std::make_shared<OutputPackage>();
+		for (int i = 0; i < output_num_; i++) {
+			rknn_mem_sync(rknn_ctx_, output_mems_[i], RKNN_MEMORY_SYNC_FROM_DEVICE);
+			std::shared_ptr<float[]> output(new float[output_attrs_[i].n_elems]);
+			int zp = output_attrs_[i].zp;
+			float scale = output_attrs_[i].scale;
+			LOG.info("output zp = %d, scale = %f size = %d", zp, scale, output_attrs_[i].n_elems);
+			if (is_quant_) {
+				for (int j = 0; j < output_attrs_[i].n_elems; j++) {
+					output[j] = deqnt_affine_to_f32(
+						reinterpret_cast<int8_t*>(output_mems_[i]->virt_addr)[j], zp, scale);
+				}
+			} else {
+				throw std::runtime_error("output type is not quantized, Not Implemented");
+			}	
+			//  add to ouput package
+			output_data->push_data(output, output_attrs_[i].n_elems);
 
-		return inputs[0];
+		}
+		return output_data;
 
 	}
+
+	inline float RkRunner::deqnt_affine_to_f32(int8_t qnt, int zp, float scale) {
+		return (static_cast<float>(qnt) - static_cast<float>(zp)) * scale;
+	}
+
 	RkRunner::~RkRunner() {
 		LOG.info(__PRETTY_FUNCTION__);
 
