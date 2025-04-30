@@ -15,7 +15,7 @@ rknn_core_mask NPU_SERIAL_NUM[5] = {RKNN_NPU_CORE_0, RKNN_NPU_CORE_1, RKNN_NPU_C
                                     RKNN_NPU_CORE_0_1_2};
 
 namespace GryFlux {
-	RkRunner::RkRunner(std::string_view model_path, int npu_id, int model_width, int model_height) {
+	RkRunner::RkRunner(std::string_view model_path, int npu_id, std::size_t model_width, std::size_t model_height) {
 		this->model_width_ = model_width;
 		this->model_height_ = model_height;
 		LOG.info("model path: %s", model_path.data());
@@ -83,13 +83,18 @@ namespace GryFlux {
 		RKNN_CHECK(rknn_set_io_mem(rknn_ctx_, input_mems_[0], &input_attrs_[0]), "set input mem");
 
 		// Create output tensor memory
-		for (uint32_t i = 0; i < output_num_; ++i) {
+		for (std::size_t i = 0; i < output_num_; ++i) {
+			std::size_t output_size;
 			// default output type is depend on model, this require float32 to compute top5
+			if (is_quant_) {
+				output_size = output_attrs_[i].n_elems * sizeof(int8_t);
+				output_attrs_[i].type = RKNN_TENSOR_INT8;
+			} else {
+				output_attrs_[i].type = RKNN_TENSOR_FLOAT32;
+				output_size = output_attrs_[i].n_elems * sizeof(float);
+			}
 			// allocate float32 output tensor
-			int output_size = output_attrs_[i].n_elems * sizeof(int8_t);
 			output_mems_.emplace_back(rknn_create_mem(rknn_ctx_, output_size));
-			// default output type is depend on model, this require float32 to compute top5
-			output_attrs_[i].type = RKNN_TENSOR_INT8;
 			// set output memory and attribute
 			RKNN_CHECK(rknn_set_io_mem(rknn_ctx_, output_mems_[i], &output_attrs_[i]), "set ouput mem");
 
@@ -113,7 +118,7 @@ namespace GryFlux {
 				return std::nullopt;
 		}
 
-		const int fileSize = static_cast<int>(file.tellg()); // Get the file size
+		const std::size_t fileSize = static_cast<int>(file.tellg()); // Get the file size
 		file.seekg(0, std::ios::beg); // Seek back to the beginning
 		auto buffer = std::make_unique<unsigned char[]>(fileSize); // Allocate memory for the buffer
 
@@ -132,7 +137,7 @@ namespace GryFlux {
 		if (inputs.size() != 1) return nullptr;
 
 		//set input
-        auto input_data = std::dynamic_pointer_cast<InputPackage>(inputs[0]);
+        auto input_data = std::dynamic_pointer_cast<ImagePackage>(inputs[0]);
 		auto frame = input_data->get_data();
 		memcpy(input_mems_[0]->virt_addr, frame.data, input_mems_[0]->size);
 		rknn_mem_sync(rknn_ctx_, input_mems_[0], RKNN_MEMORY_SYNC_TO_DEVICE);
@@ -141,8 +146,8 @@ namespace GryFlux {
 		RKNN_CHECK(rknn_run(rknn_ctx_, nullptr), "rknn run inference");
 
 		//sync output
-		auto output_data = std::make_shared<OutputPackage>();
-		for (int i = 0; i < output_num_; i++) {
+		auto output_data = std::make_shared<RunnerPackage>(model_width_, model_height_);
+		for (std::size_t i = 0; i < output_num_; i++) {
 			rknn_mem_sync(rknn_ctx_, output_mems_[i], RKNN_MEMORY_SYNC_FROM_DEVICE);
 			std::shared_ptr<float[]> output(new float[output_attrs_[i].n_elems]);
 			int zp = output_attrs_[i].zp;
@@ -156,8 +161,8 @@ namespace GryFlux {
 			} else {
 				throw std::runtime_error("output type is not quantized, Not Implemented");
 			}	
-			//  add to ouput package
-			output_data->push_data(output, output_attrs_[i].n_elems);
+			// add to ouput package
+			output_data->push_data({output, output_attrs_[i].n_elems}, {output_attrs_[i].dims[2], output_attrs_[i].dims[3]});
 
 		}
 		return output_data;
@@ -171,10 +176,10 @@ namespace GryFlux {
 	RkRunner::~RkRunner() {
 		LOG.info(__PRETTY_FUNCTION__);
 
-		for (auto & mem : input_mems_) {
+		for (auto& mem : input_mems_) {
 			rknn_destroy_mem(rknn_ctx_, mem);
 		}
-		for (auto & mem : output_mems_) {
+		for (auto& mem : output_mems_) {
 			rknn_destroy_mem(rknn_ctx_, mem);
 		}
 		delete[] input_attrs_;

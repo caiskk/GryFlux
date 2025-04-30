@@ -8,13 +8,13 @@
 
 namespace GryFlux
 {
-    using ModelData = std::pair<std::unique_ptr<unsigned char[]>, int>; //buffer, size
+    using ModelData = std::pair<std::unique_ptr<unsigned char[]>, std::size_t>; //buffer, size
 
     class RkRunner: public ProcessingTask
     {
     public:
     	explicit RkRunner(std::string_view model_path, const int npu_id = 1,
-                          const int model_width = 640, const int model_height = 640);
+                          const std::size_t model_width = 640, const std::size_t model_height = 640);
         std::shared_ptr<DataObject> process(const std::vector<std::shared_ptr<DataObject>> &inputs) override;
 
         // Function to read binary file into a buffer allocated in memory
@@ -27,8 +27,8 @@ namespace GryFlux
 
     private:
         rknn_context rknn_ctx_;
-        int input_num_;
-        int output_num_;
+        std::size_t input_num_;
+        std::size_t output_num_;
         rknn_tensor_attr* input_attrs_;
         rknn_tensor_attr* output_attrs_;
         //zero copy buffer for rknn 
@@ -36,8 +36,8 @@ namespace GryFlux
         std::vector<rknn_tensor_mem*> output_mems_;
         // rknn_tensor_mem** input_mems_;
         // rknn_tensor_mem** output_mems_;
-        int model_width_;
-        int model_height_;
+        std::size_t model_width_;
+        std::size_t model_height_;
         bool is_quant_;
     };
 }
