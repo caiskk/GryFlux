@@ -17,18 +17,47 @@
 
 #include "res_sender.h"
 #include "package.h"
+#include "utils/logger.h"
 
 namespace GryFlux
 {
+    static std::vector<std::string> g_classes = {
+        "person", "bicycle", "car", "motorbike ", "aeroplane ", "bus ", "train", "truck ", "boat", "traffic light",
+        "fire hydrant", "stop sign ", "parking meter", "bench", "bird", "cat", "dog ", "horse ", "sheep", "cow", "elephant",
+        "bear", "zebra ", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
+        "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife ",
+        "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza ", "donut", "cake", "chair", "sofa",
+        "pottedplant", "bed", "diningtable", "toilet ", "tvmonitor", "laptop	", "mouse	", "remote ", "keyboard ", "cell phone", "microwave ",
+        "oven ", "toaster", "sink", "refrigerator ", "book", "clock", "vase", "scissors ", "teddy bear ", "hair drier", "toothbrush "};
+
     std::shared_ptr<DataObject> ResSender::process(const std::vector<std::shared_ptr<DataObject>> &inputs)
     {
-        // 单输入
-        if (inputs.size() != 1)
+        // input picture and object info
+        if (inputs.size() != 2)
             return nullptr;
 
-        // 默认输出为第一个输入，所有结果向第一个输入合并
-        auto result = std::dynamic_pointer_cast<InputPackage>(inputs[0]);
+        auto image_data = std::dynamic_pointer_cast<ImagePackage>(inputs[0]);
+        int img_id = image_data->get_id();
+        auto img = image_data->get_data();
 
-        return result;
+        auto object_data = std::dynamic_pointer_cast<ObjectPackage>(inputs[1]);
+        auto objects = object_data->get_data();
+        int object_count = objects.size();
+        if (object_count <= 0)
+        {
+            LOG.info("ResSender: no object detected");
+            return nullptr;
+        }
+
+        // 画框
+        for (int i = 0; i < object_count; ++i)
+        {
+            auto obj = objects[i];
+            cv::rectangle(img, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(0, 255, 0), 2);
+            std::string label = g_classes[obj.class_id] + ": " + std::to_string(obj.prob);
+            cv::putText(img, label, cv::Point(obj.left, obj.top - 5), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+        }
+
+        return std::make_shared<ImagePackage>(img, img_id);
     }
 }
