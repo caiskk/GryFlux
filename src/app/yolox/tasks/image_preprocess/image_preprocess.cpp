@@ -20,34 +20,63 @@
 
 namespace GryFlux
 {
-    std::shared_ptr<DataObject> ImagePreprocess::process(const std::vector<std::shared_ptr<DataObject>> &inputs)
-    {
-        // single input
+    std::shared_ptr<DataObject> ImagePreprocess::process(const std::vector<std::shared_ptr<DataObject>>& inputs) {
+        // Check input validity
         if (inputs.size() != 1) {
-			return nullptr;
-            
+            return nullptr;
         }
 
-        auto input_data = std::dynamic_pointer_cast<InputPackage>(inputs[0]);
-        const auto& frame = input_data->get_data();
+        auto input_data = std::dynamic_pointer_cast<ImagePackage>(inputs[0]);
+        const auto frame = input_data->get_data();
         cv::Mat img;
-        //transform BGR -> RGB
+        
+        // Convert BGR to RGB (OpenCV default is BGR, models typically expect RGB)
         cv::cvtColor(frame, img, cv::COLOR_BGR2RGB);
-        // resize 
-        auto img_width = input_data->get_width(), img_height = input_data->get_height();
-        cv::Mat resized_img;
+
+        // Get original image dimensions and ID
+        int img_width = input_data->get_width();
+        int img_height = input_data->get_height();
         int idx = input_data->get_id();
-        float scale_w = 1, scale_h = 1; 
-        if (img_width != model_width_ || img_height != model_height_) {
-            cv::resize(img,resized_img,cv::Size(model_width_,model_height_));
-            scale_w = (float)model_width_ / img_width, scale_h = (float)model_height_ / img_height;
-        } else {
-            resized_img = img;
+
+        // Early return if image already matches model input size
+        if (img_width == model_width_ && img_height == model_height_) {
+            return std::make_shared<ImagePackage>(img, idx, 1.0f, 0, 0);
         }
 
-        LOG.info("get image id %d  img->width: %d, img->height: %d, scale_w: %f, scale_h: %f, resize img->width: %d, resize img->height: %d",
-                 idx, img_width, img_height, scale_w, scale_h, resized_img.cols, resized_img.rows);
-        // create new package
-        return std::make_shared<InputPackage>(resized_img, idx, scale_w, scale_h);
+        // --- Letterbox Preprocessing ---
+        // 1. Calculate scaling factor (maintain aspect ratio)
+        float scale = std::min(static_cast<float>(model_width_) / img_width,
+                            static_cast<float>(model_height_) / img_height);
+        
+        // 2. Calculate new dimensions after scaling
+        int new_w = static_cast<int>(img_width * scale);
+        int new_h = static_cast<int>(img_height * scale);
+        
+        // 3. Perform aspect ratio-preserving resize
+        cv::Mat resized_img;
+        cv::resize(img, resized_img, cv::Size(new_w, new_h));
+
+        // 4. Create gray canvas (114,114,114 is YOLO's conventional padding color)
+        cv::Mat letterbox_img(model_height_, model_width_, CV_8UC3, cv::Scalar(114, 114, 114));
+        
+        // 5. Calculate centering offsets
+        int x_offset = (model_width_ - new_w) / 2;  // Horizontal padding
+        int y_offset = (model_height_ - new_h) / 2; // Vertical padding
+        
+        // 6. Place resized image in center of canvas
+        resized_img.copyTo(letterbox_img(cv::Rect(x_offset, y_offset, new_w, new_h)));
+
+        LOG.info("Letterbox processing: id=%d | Original(%dx%d) -> Scaled(%dx%d) -> Padded(%dx%d) | scale=%f, pad=(%d,%d)",
+                idx, img_width, img_height, new_w, new_h, model_width_, model_height_, 
+                scale, x_offset, y_offset);
+
+        // Return processed package with transformation metadata
+        return std::make_shared<ImagePackage>(
+            letterbox_img,    // Processed image with letterbox
+            idx,              // Original image ID
+            scale,            // Scaling factor (same for width/height due to aspect ratio preservation)
+            x_offset,         // Horizontal padding (left side)
+            y_offset          // Vertical padding (top side)
+        );
     }
 }

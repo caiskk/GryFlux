@@ -36,8 +36,8 @@ void ImageProducer::run() {
           continue;
         }
 
-        auto input_data = std::make_shared<InputPackage>(
-            src_frame, frame_count, src_frame.cols, src_frame.rows);
+        auto input_data = std::make_shared<ImagePackage>(
+            src_frame, frame_count);
         // addd data to pipeline
         if (!addData(input_data)) {
           LOG.error("[ImageProducer] Failed to add input data to pipeline");

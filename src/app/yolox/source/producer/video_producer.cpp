@@ -25,8 +25,8 @@ namespace GryFlux {
 				LOG.info("Failed to read frame");
 				continue;
 			}
-            auto input_data = std::make_shared<InputPackage>(
-                src_frame, i, this->width_, this->height_
+            auto input_data = std::make_shared<ImagePackage>(
+                src_frame, i
             );
             // 添加到处理管道
             if (!addData(input_data))
