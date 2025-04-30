@@ -43,11 +43,6 @@ namespace GryFlux
         auto object_data = std::dynamic_pointer_cast<ObjectPackage>(inputs[1]);
         auto objects = object_data->get_data();
         int object_count = objects.size();
-        if (object_count <= 0)
-        {
-            LOG.info("ResSender: no object detected");
-            return nullptr;
-        }
 
         // 画框
         for (int i = 0; i < object_count; ++i)
