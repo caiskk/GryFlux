@@ -32,8 +32,10 @@
 
 #include "source/producer/image_producer.h"
 #include "tasks/image_preprocess/image_preprocess.h"
-#include "tasks/res_sender/res_sender.h"
+#include "tasks/object_detector/object_detector.h"
 #include "tasks/rk_runner/rk_runner.h"
+#include "tasks/res_sender/res_sender.h"
+#include "sink/write_consumer/write_consumer.h"
 // 计算图构建函数
 void buildStreamingComputeGraph(std::shared_ptr<GryFlux::PipelineBuilder> builder,
                                 std::shared_ptr<GryFlux::DataObject> input,
@@ -47,9 +49,16 @@ void buildStreamingComputeGraph(std::shared_ptr<GryFlux::PipelineBuilder> builde
     auto imgPreprocessNode = builder->addTask("imagePreprocess",
                                               taskRegistry.getProcessFunction("imagePreprocess"),
                                               {inputNode});
+    auto rkRunnerNode = builder->addTask("rkRunner",
+                                         taskRegistry.getProcessFunction("rkRunner"),
+                                         {imgPreprocessNode});
+    auto objectDetectorNode = builder->addTask("objectDetector",
+                                               taskRegistry.getProcessFunction("objectDetector"),
+                                               {imgPreprocessNode, rkRunnerNode});
+
     builder->addTask(outputId,
                      taskRegistry.getProcessFunction("resultSender"),
-                     {imgPreprocessNode});
+                     {inputNode, objectDetectorNode});
 
 }
 
@@ -89,6 +98,7 @@ int main(int argc, const char **argv)
     // 注册各种处理任务
     taskRegistry.registerTask<GryFlux::ImagePreprocess>("imagePreprocess", 640, 640);
     taskRegistry.registerTask<GryFlux::RkRunner>("rkRunner", argv[1]);
+    taskRegistry.registerTask<GryFlux::ObjectDetector>("objectDetector", 0.5f);
     taskRegistry.registerTask<GryFlux::ResSender>("resultSender");
     // 创建流式处理管道
     GryFlux::StreamingPipeline pipeline(10); // 使用10个线程
@@ -116,18 +126,18 @@ int main(int argc, const char **argv)
 
     // 创建输入生产者和消费者
     GryFlux::ImageProducer producer(pipeline, running, cpuAllocator, argv[2]);
-    // GryFlux::TestConsumer consumer(pipeline, running,cpuAllocator);
+    GryFlux::WriteConsumer consumer(pipeline, running,cpuAllocator);
 
     // 启动生产者和消费者
     producer.start();
-    // consumer.start();
+    consumer.start();
 
     // 等待生产者和消费者线程结束
     producer.join();
     LOG.info("[main] Producer finished");
 
-    // consumer.join();
-    // LOG.info("[main] Consumer finished, processed %d frames", consumer.getProcessedFrames());
+    consumer.join();
+    LOG.info("[main] Consumer finished, processed %d frames", consumer.getProcessedFrames());
 
     pipeline.stop();
     LOG.info("[main] Pipeline stopped");
