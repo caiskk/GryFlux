@@ -7,15 +7,15 @@ target_include_directories(app_includes INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/sink
     ${CMAKE_CURRENT_SOURCE_DIR}/tasks
     ${CMAKE_CURRENT_SOURCE_DIR}/package
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 )
 set(rknn_lib /usr/lib/librknnrt.so)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/package ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty ${OpenCV_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/package ${CMAKE_CURRENT_SOURCE_DIR}/runtime ${OpenCV_INCLUDE_DIRS})
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/sink/write_consumer APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/source/producer APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/image_preprocess APP_SRC)
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty APP_SRC)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/runtime APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/rk_runner APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/object_detector APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/res_sender APP_SRC)

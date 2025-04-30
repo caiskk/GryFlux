@@ -66,9 +66,12 @@ namespace GryFlux {
 		// is quant model
 		if (output_attrs_[0].qnt_type == RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC && output_attrs_[0].type != RKNN_TENSOR_FLOAT16) {
 			is_quant_ = true;
+			LOG.info("model is quantized");
 		}
-		else
+		else {
+			throw std::runtime_error("model is not quantized");
 			is_quant_ = false;
+		}
 		// Create input tensor memory
 		if (input_attrs_[0].fmt != RKNN_TENSOR_NHWC) {
 			throw std::runtime_error("only input type nhwc is supported in zero_copy mode");
