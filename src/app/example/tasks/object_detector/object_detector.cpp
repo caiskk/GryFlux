@@ -17,6 +17,7 @@
 
 #include "object_detector.h"
 #include "custom_package.h"
+#include <thread>
 namespace GryFlux
 {
     std::shared_ptr<DataObject> ObjectDetector::process(const std::vector<std::shared_ptr<DataObject>> &inputs)
@@ -31,7 +32,7 @@ namespace GryFlux
             /* code */
             input_data->push_data(i);
         }
-
+        std::this_thread::sleep_for(std::chrono::seconds(3));
         return input_data;
     }
 }

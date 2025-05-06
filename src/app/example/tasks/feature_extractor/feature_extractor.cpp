@@ -16,7 +16,7 @@
  *************************************************************************************************************************/
 #include "feature_extractor.h"
 #include "custom_package.h"
-
+#include <thread>
 namespace GryFlux
 {
     std::shared_ptr<DataObject> FeatureExtractor::process(const std::vector<std::shared_ptr<DataObject>> &inputs)
@@ -26,6 +26,7 @@ namespace GryFlux
 
         auto input_data = std::dynamic_pointer_cast<CustomPackage>(inputs[0]);
         // 添加处理逻辑
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
         return input_data;
     }
