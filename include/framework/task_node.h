@@ -45,6 +45,7 @@ namespace GryFlux
         bool isExecuted() const;
 
         virtual std::shared_ptr<DataObject> execute() = 0;
+        void executeOnce(); //保证同一个任务不会被多次执行
         virtual bool isReady() const; // 添加isReady方法
 
         // 执行时间相关方法
@@ -52,8 +53,6 @@ namespace GryFlux
         void endExecution();
         double getExecutionTimeMs() const;
 
-        //保护任务执行过程，确保两个相同的任务不会被同时执行
-        mutable std::recursive_mutex execMutex;
 
     protected:
         TaskId id_;
@@ -66,8 +65,8 @@ namespace GryFlux
         std::chrono::time_point<std::chrono::high_resolution_clock> endTime_;
         double executionTimeMs_;
         
-        // 互斥锁保护共享数据访问
-        mutable std::mutex mutex_;
+        // 互斥锁保护任务执行过程和共享数据访问，确保线程安全
+        mutable std::recursive_mutex mutex_;
 
     };
 
