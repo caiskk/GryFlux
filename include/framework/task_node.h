@@ -52,6 +52,9 @@ namespace GryFlux
         void endExecution();
         double getExecutionTimeMs() const;
 
+        //保护任务执行过程，确保两个相同的任务不会被同时执行
+        mutable std::recursive_mutex execMutex;
+
     protected:
         TaskId id_;
         std::vector<std::shared_ptr<TaskNode>> dependencies_;
@@ -65,6 +68,7 @@ namespace GryFlux
         
         // 互斥锁保护共享数据访问
         mutable std::mutex mutex_;
+
     };
 
     // 输入数据源节点

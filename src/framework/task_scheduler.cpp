@@ -107,7 +107,7 @@ namespace GryFlux
 
         try {
             // 使用互斥锁保护任务执行过程
-            std::lock_guard<std::mutex> lock(taskExecutionMutex);
+            std::lock_guard<std::recursive_mutex> lock(task->execMutex);
             
             // 再次检查是否已执行，以防在等待依赖时被其他线程执行
             if (task->isExecuted()) {

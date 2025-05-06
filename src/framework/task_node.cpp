@@ -21,8 +21,6 @@
 
 namespace GryFlux
 {
-    // 添加互斥锁保护共享数据
-    std::mutex taskNodeMutex;
 
     // TaskNode基类实现
     TaskNode::TaskNode(TaskId id) : id_(id), executed_(false), executionTimeMs_(0.0) {}
@@ -47,14 +45,14 @@ namespace GryFlux
 
     void TaskNode::setResult(std::shared_ptr<DataObject> result)
     {
-        std::lock_guard<std::mutex> lock(taskNodeMutex);
+        std::lock_guard<std::recursive_mutex> lock(execMutex);
         result_ = result;
         executed_ = true;
     }
 
     std::shared_ptr<DataObject> TaskNode::getResult()
     {
-        std::lock_guard<std::mutex> lock(taskNodeMutex);
+        std::lock_guard<std::recursive_mutex> lock(execMutex);
         return result_;
     }
 
