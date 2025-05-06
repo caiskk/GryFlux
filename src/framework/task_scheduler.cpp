@@ -106,28 +106,7 @@ namespace GryFlux
         }
 
         try {
-            // 使用互斥锁保护任务执行过程
-            std::lock_guard<std::recursive_mutex> lock(task->execMutex);
-            
-            // 再次检查是否已执行，以防在等待依赖时被其他线程执行
-            if (task->isExecuted()) {
-                return;
-            }
-
-            // 记录任务开始执行时间
-            task->startExecution();
-            
-            // 执行当前任务
-            auto result = task->execute();
-            
-            // 记录任务结束执行时间
-            task->endExecution();
-
-            // 设置结果（必须在记录结束时间之后）
-            task->setResult(result);
-            
-            // 记录执行时间
-            LOG.debug("Task [%s] executed in %.3f ms", task->getId().c_str(), task->getExecutionTimeMs());
+            task->executeOnce();
         } catch (const std::exception& e) {
             LOG.error("Exception in task [%s]: %s", task->getId().c_str(), e.what());
         } catch (...) {

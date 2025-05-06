@@ -45,14 +45,14 @@ namespace GryFlux
 
     void TaskNode::setResult(std::shared_ptr<DataObject> result)
     {
-        std::lock_guard<std::recursive_mutex> lock(execMutex);
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
         result_ = result;
         executed_ = true;
     }
 
     std::shared_ptr<DataObject> TaskNode::getResult()
     {
-        std::lock_guard<std::recursive_mutex> lock(execMutex);
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
         return result_;
     }
 
@@ -92,6 +92,33 @@ namespace GryFlux
             LOG.error("Exception in endExecution: %s", e.what());
             executionTimeMs_ = 0.0;  // 默认值以防出错
         }
+    }
+
+    void TaskNode::executeOnce()
+    {
+        // 使用互斥锁保护任务执行过程
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        
+        // 再次检查是否已执行，以防在等待依赖时被其他线程执行
+        if (isExecuted()) {
+            return;
+        }
+
+        // 记录任务开始执行时间
+        startExecution();
+        
+        // 执行当前任务
+        auto result = execute();
+        
+        // 记录任务结束执行时间
+        endExecution();
+
+        // 设置结果（必须在记录结束时间之后）
+        setResult(result);
+        
+        // 记录执行时间
+        LOG.debug("Task [%s] executed in %.3f ms", getId().c_str(), getExecutionTimeMs());
+
     }
 
     double TaskNode::getExecutionTimeMs() const
