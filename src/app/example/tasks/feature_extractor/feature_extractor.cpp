@@ -16,6 +16,7 @@
  *************************************************************************************************************************/
 #include "feature_extractor.h"
 #include "custom_package.h"
+#include <memory>
 #include <thread>
 namespace GryFlux
 {
@@ -25,9 +26,21 @@ namespace GryFlux
             return nullptr;
 
         auto input_data = std::dynamic_pointer_cast<CustomPackage>(inputs[0]);
-        // 添加处理逻辑
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::vector<int> data;
+        input_data->get_data(data);
 
-        return input_data;
+        // 在原有input数据的基础上添加0-1000
+        auto result = std::make_shared<CustomPackage>();
+        for (auto i : data) result->push_data(i);
+        for (int i = 0; i < 1000; i++)
+        {
+            /* code */
+            result->push_data(i);
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        // 添加处理逻辑
+
+        return result;
     }
 }
