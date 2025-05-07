@@ -32,6 +32,7 @@ namespace GryFlux
         int frame_interval_ms;
 
     public:
+        // Using max_frames=3 by default for faster test execution.
         TestImageProducer(StreamingPipeline &pipeline, std::atomic<bool> &running, CPUAllocator *allocator,
                           int max_frames = 3, int frame_interval_ms = 33)
             : DataProducer(pipeline, running, allocator), frame_count(0),
