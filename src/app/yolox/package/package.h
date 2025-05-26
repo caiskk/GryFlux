@@ -81,7 +81,7 @@ public:
       return model_width_;
     }
     std::size_t get_model_height() const {
-      return model_width_;
+      return model_height_;
     }
     void push_data(OutputData output_data, GridSize grid_size) {
       rknn_output_buff.push_back(output_data);
