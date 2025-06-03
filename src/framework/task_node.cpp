@@ -58,7 +58,10 @@ namespace GryFlux
 
     bool TaskNode::isExecuted() const
     {
-        return executed_.load();
+        // 使用互斥锁保护任务执行过程
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+        return executed_;
     }
 
     bool TaskNode::isReady() const
@@ -85,6 +88,9 @@ namespace GryFlux
 
     void TaskNode::endExecution()
     {
+        // 使用互斥锁保护任务执行过程
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+
         try {
             endTime_ = std::chrono::high_resolution_clock::now();
             executionTimeMs_ = std::chrono::duration<double, std::milli>(endTime_ - startTime_).count();
