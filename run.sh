@@ -1,2 +1,2 @@
 rm -r outputs
-./install/yolox_stream ./data/model/yolox_s_quantize.om ./data/test/
+./install/yolox_stream ./data/model/yolox_s.om ./data/test/
