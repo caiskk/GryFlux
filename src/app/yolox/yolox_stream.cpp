@@ -33,7 +33,7 @@
 #include "source/producer/image_producer.h"
 #include "tasks/image_preprocess/image_preprocess.h"
 #include "tasks/object_detector/object_detector.h"
-#include "tasks/rk_runner/rk_runner.h"
+#include "tasks/ascend_runner/ascend_runner.h"
 #include "tasks/res_sender/res_sender.h"
 #include "sink/write_consumer/write_consumer.h"
 // 计算图构建函数
@@ -49,12 +49,12 @@ void buildStreamingComputeGraph(std::shared_ptr<GryFlux::PipelineBuilder> builde
     auto imgPreprocessNode = builder->addTask("imagePreprocess",
                                               taskRegistry.getProcessFunction("imagePreprocess"),
                                               {inputNode});
-    auto rkRunnerNode = builder->addTask("rkRunner",
-                                         taskRegistry.getProcessFunction("rkRunner"),
+    auto ascendRunnerNode = builder->addTask("ascendRunner",
+                                         taskRegistry.getProcessFunction("ascendRunner"),
                                          {imgPreprocessNode});
     auto objectDetectorNode = builder->addTask("objectDetector",
                                                taskRegistry.getProcessFunction("objectDetector"),
-                                               {imgPreprocessNode, rkRunnerNode});
+                                               {imgPreprocessNode, ascendRunnerNode});
 
     builder->addTask(outputId,
                      taskRegistry.getProcessFunction("resultSender"),
@@ -64,8 +64,8 @@ void buildStreamingComputeGraph(std::shared_ptr<GryFlux::PipelineBuilder> builde
 
 void initLogger()
 {
-    LOG.setLevel(GryFlux::LogLevel::INFO);
-    LOG.setOutputType(GryFlux::LogOutputType::BOTH);
+    LOG.setLevel(GryFlux::LogLevel::DEBUG);
+    LOG.setOutputType(GryFlux::LogOutputType::CONSOLE);
     LOG.setAppName("StreamingExample");
     //  如果logs目录不存在，创建logs目录
     std::filesystem::path dirPath("./logs");
@@ -97,7 +97,7 @@ int main(int argc, const char **argv)
     CPUAllocator *cpuAllocator = new CPUAllocator();
     // 注册各种处理任务
     taskRegistry.registerTask<GryFlux::ImagePreprocess>("imagePreprocess", 640, 640);
-    taskRegistry.registerTask<GryFlux::RkRunner>("rkRunner", argv[1]);
+    taskRegistry.registerTask<GryFlux::AscendRunner>("ascendRunner", argv[1]);
     taskRegistry.registerTask<GryFlux::ObjectDetector>("objectDetector", 0.5f);
     taskRegistry.registerTask<GryFlux::ResSender>("resultSender");
     // 创建流式处理管道
