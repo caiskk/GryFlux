@@ -10,16 +10,6 @@ target_include_directories(app_includes INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 )
 
-# RKNN library configuration (optional)
-set(rknn_lib_path /usr/lib/librknnrt.so)
-if(EXISTS ${rknn_lib_path})
-    set(rknn_lib ${rknn_lib_path})
-    message(STATUS "Found RKNN library: ${rknn_lib}")
-else()
-    set(rknn_lib "")
-    message(STATUS "RKNN library not found, skipping")
-endif()
-
 # Ascend ACL library configuration
 set(ASCEND_TOOLKIT_PATH /usr/local/Ascend/ascend-toolkit/latest)
 set(ASCEND_INCLUDE_DIR ${ASCEND_TOOLKIT_PATH}/runtime/include)
@@ -42,12 +32,6 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/sink/write_consumer APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/source/producer APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/image_preprocess APP_SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/runtime APP_SRC)
-
-# Conditionally include runners based on available libraries
-if(rknn_lib)
-    aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/rk_runner APP_SRC)
-    message(STATUS "Including RKNN runner")
-endif()
 
 if(ascend_libs)
     aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/tasks/ascend_runner APP_SRC)
