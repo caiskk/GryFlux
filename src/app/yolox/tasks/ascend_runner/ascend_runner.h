@@ -6,6 +6,7 @@
 #include "fstream"
 #include "utils/logger.h"
 #include "acl/acl.h"
+#include "opencv2/opencv.hpp"
 
 namespace GryFlux
 {
@@ -42,7 +43,12 @@ namespace GryFlux
         
         std::size_t model_width_;
         std::size_t model_height_;
-        bool is_quant_;
         int device_id_;
+        
+        // Performance optimization: pre-allocated buffer for reuse
+        std::vector<float> host_input_buffer_;  // Reusable input buffer to avoid repeated allocations
+        
+        // Helper method for optimized preprocessing
+        void preprocess_image(const cv::Mat& frame, float* output_buffer);
     };
 }

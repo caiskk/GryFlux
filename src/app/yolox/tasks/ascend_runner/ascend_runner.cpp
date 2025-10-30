@@ -95,6 +95,12 @@ namespace GryFlux {
 			this->dump_tensor_attr(&dims, "output", dataType, format);
 		}
 
+		// Pre-allocate host input buffer to avoid repeated allocations
+		size_t input_elem_count = model_width_ * model_height_ * 3; // RGB/BGR 3 channels
+		host_input_buffer_.resize(input_elem_count);
+		
+		LOG.info("Pre-allocated input buffer: %zu elements (%zu bytes)", 
+				 input_elem_count, input_elem_count * sizeof(float));
 	}
 
 	void AscendRunner::dump_tensor_attr(aclmdlIODims* dims, const char* name, aclDataType dataType, aclFormat format) {
@@ -128,6 +134,51 @@ namespace GryFlux {
 				typeStr, fmtStr);
 	}
 
+	void AscendRunner::preprocess_image(const cv::Mat& frame, float* output_buffer) {
+		
+		const int channels = 3;
+		const size_t channel_size = model_width_ * model_height_;
+		
+		// Convert to float and rearrange from HWC to CHW in a single loop
+		if (frame.type() == CV_8UC3) {
+			// Most common case: 8-bit BGR image
+			const uint8_t* src = frame.data;
+			for (size_t h = 0; h < model_height_; ++h) {
+				for (size_t w = 0; w < model_width_; ++w) {
+					size_t src_idx = (h * model_width_ + w) * channels;
+					size_t dst_idx = h * model_width_ + w;
+					// BGR to CHW (keeping BGR order as original)
+					output_buffer[dst_idx] = static_cast<float>(src[src_idx]); // B
+					output_buffer[channel_size + dst_idx] = static_cast<float>(src[src_idx + 1]); // G
+					output_buffer[2 * channel_size + dst_idx] = static_cast<float>(src[src_idx + 2]); // R
+				}
+			}
+		} else if (frame.type() == CV_32FC3) {
+			// Already float type
+			const float* src = reinterpret_cast<const float*>(frame.data);
+			for (size_t h = 0; h < model_height_; ++h) {
+				for (size_t w = 0; w < model_width_; ++w) {
+					size_t src_idx = (h * model_width_ + w) * channels;
+					size_t dst_idx = h * model_width_ + w;
+					output_buffer[dst_idx] = src[src_idx]; // B
+					output_buffer[channel_size + dst_idx] = src[src_idx + 1]; // G
+					output_buffer[2 * channel_size + dst_idx] = src[src_idx + 2]; // R
+				}
+			}
+		} else {
+			// Fallback to original method for other types
+			cv::Mat float_frame;
+			frame.convertTo(float_frame, CV_32F);
+			
+			std::vector<cv::Mat> channels_vec(channels);
+			cv::split(float_frame, channels_vec);
+			
+			for (int i = 0; i < channels; i++) {
+				memcpy(output_buffer + i * channel_size, channels_vec[i].data, channel_size * sizeof(float));
+			}
+		}
+	}
+
 	std::optional<ModelData> AscendRunner::load_model(std::string_view filename) {
 		std::ifstream file(filename.data(), std::ios::binary | std::ios::ate);
 		if (!file.is_open()) {
@@ -148,41 +199,29 @@ namespace GryFlux {
 	}
 
     std::shared_ptr<DataObject> AscendRunner::process(const std::vector<std::shared_ptr<DataObject>> &inputs) {
-		if (inputs.size() != 1) return nullptr;
 
 		auto input_data = std::dynamic_pointer_cast<ImagePackage>(inputs[0]);
 		auto frame = input_data->get_data();
 		
-		if (frame.rows != model_height_ || frame.cols != model_width_) {
+		if (frame.rows != static_cast<int>(model_height_) || frame.cols != static_cast<int>(model_width_)) {
 			LOG.error("Input image size (%dx%d) doesn't match model input size (%zux%zu)", 
 					  frame.cols, frame.rows, model_width_, model_height_);
 			return nullptr;
 		}
 		
-		cv::Mat float_frame;
-		frame.convertTo(float_frame, CV_32F);
+		// Optimized preprocessing: use pre-allocated buffer and single-pass conversion
+		preprocess_image(frame, host_input_buffer_.data());
 
-		// Convert NHWC to NCHW
-		std::vector<cv::Mat> channels(3);
-		cv::split(float_frame, channels);
-		
-		std::vector<float> nchw_data(1 * 3 * frame.rows * frame.cols);
-		size_t channel_size = frame.rows * frame.cols;
-		for (int i = 0; i < 3; i++) {
-			memcpy(nchw_data.data() + i * channel_size, channels[i].data, channel_size * sizeof(float));
-		}
-
-		// Copy input data to device
+		// Set context before operations
 		ACL_CHECK(aclrtSetCurrentContext(context_), "aclrtSetCurrentContext");
 		
-		size_t input_size = nchw_data.size() * sizeof(float);
+		// Copy input data to device
+		size_t input_size = host_input_buffer_.size() * sizeof(float);
 		ACL_CHECK(aclrtMemcpy(input_device_buffers_[0], input_buffer_sizes_[0], 
-							 nchw_data.data(), input_size, ACL_MEMCPY_HOST_TO_DEVICE), 
+							 host_input_buffer_.data(), input_size, ACL_MEMCPY_HOST_TO_DEVICE), 
 							 "aclrtMemcpy input to device");
-
 		// Execute model
 		ACL_CHECK(aclmdlExecute(model_id_, input_dataset_, output_dataset_), "aclmdlExecute");
-		ACL_CHECK(aclrtSynchronizeStream(stream_), "aclrtSynchronizeStream");
 
 		// Process outputs
 		auto output_data = std::make_shared<RunnerPackage>(model_width_, model_height_);
@@ -201,7 +240,6 @@ namespace GryFlux {
 			ACL_CHECK(aclrtMemcpy(output_host.get(), n_elems * sizeof(float),
 									output_device_buffers_[i], output_buffer_sizes_[i],
 									ACL_MEMCPY_DEVICE_TO_HOST), "aclrtMemcpy output from device");
-			
 			size_t height = dims.dimCount > 2 ? dims.dims[2] : 1;
 			size_t width = dims.dimCount > 3 ? dims.dims[3] : 1;
 			output_data->push_data({output_host, n_elems}, {height, width});
